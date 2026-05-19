@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "build:pages": "node tools/build-pages.mjs",
     "check": "node --check server.mjs && node tools/check-index.mjs",
     "firebase": "firebase",
     "firebase:login": "firebase login",
