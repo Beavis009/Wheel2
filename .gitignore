@@ -2,3 +2,7 @@ node_modules/
 .tmp/
 participants.local.json
 *.log
+.firebase/
+.env
+.env.*
+firebase-debug.log

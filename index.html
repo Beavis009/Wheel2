@@ -429,6 +429,7 @@
     }
 
     .participant-list,
+    .pending-list,
     .winner-list {
       display: grid;
       gap: 8px;
@@ -438,6 +439,7 @@
     }
 
     .participant,
+    .pending,
     .winner {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -451,6 +453,7 @@
     }
 
     .participant span,
+    .pending span,
     .winner span {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -461,6 +464,48 @@
     .winner {
       border-color: rgba(213, 82, 43, 0.35);
       background: rgba(213, 82, 43, 0.06);
+    }
+
+    .pending {
+      border-color: rgba(140, 173, 198, 0.65);
+      background: rgba(190, 215, 228, 0.18);
+    }
+
+    .helper {
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .danger-zone {
+      border-color: rgba(213, 82, 43, 0.36);
+      background: rgba(213, 82, 43, 0.06);
+    }
+
+    .presenter-compact .topbar,
+    .presenter-compact .hero,
+    .presenter-compact .side {
+      display: none;
+    }
+
+    .presenter-compact .app-shell {
+      width: 100%;
+      padding: 0;
+    }
+
+    .presenter-compact .layout {
+      display: block;
+    }
+
+    .presenter-compact .stage {
+      min-height: 100vh;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .presenter-compact .wheel-wrap {
+      min-height: calc(100vh - 118px);
+      border-radius: 0;
     }
 
     .empty {
@@ -578,7 +623,7 @@
       <section class="hero">
         <div>
           <h1>Community Wheel</h1>
-          <p>Private names, live QR joins, and five clean winner draws for the Global AI Community.</p>
+          <p>Private names, Firebase-backed QR joins, and five clean winner draws for the Global AI Community.</p>
         </div>
         <div id="connectionStatus" class="status-pill" aria-live="polite">
           <span class="status-dot" aria-hidden="true"></span>
@@ -639,6 +684,29 @@
           </section>
 
           <section class="panel">
+            <h2>Firebase</h2>
+            <div class="stack">
+              <p class="helper">Paste the Firebase web app config from your project settings. It is saved only in this browser and encoded into the QR join link.</p>
+              <label>
+                Web app config JSON
+                <textarea id="firebaseConfigInput" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"...","appId":"..."}'></textarea>
+              </label>
+              <div class="form-row">
+                <label>
+                  Game ID
+                  <input id="gameIdInput" autocomplete="off" maxlength="64" placeholder="agentcon-berlin-2026">
+                </label>
+                <button id="connectFirebaseButton" class="btn btn-primary" type="button">Connect</button>
+              </div>
+              <div class="actions">
+                <button id="newGameButton" class="btn btn-secondary" type="button">New game</button>
+                <button id="compactPresenterButton" class="btn btn-secondary" type="button">Presenter view</button>
+              </div>
+              <p id="firebaseStatusMessage" class="helper" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section class="panel">
             <h2>Add names</h2>
             <div class="stack">
               <form id="singleNameForm" class="form-row">
@@ -661,6 +729,14 @@
           </section>
 
           <section class="panel">
+            <h2>Pending</h2>
+            <div class="actions" style="margin-bottom: 10px;">
+              <button id="approveAllButton" class="btn btn-secondary" type="button">Add all to wheel</button>
+            </div>
+            <div id="pendingList" class="pending-list"></div>
+          </section>
+
+          <section class="panel">
             <h2>Winners</h2>
             <div id="winnerList" class="winner-list"></div>
           </section>
@@ -668,6 +744,13 @@
           <section class="panel">
             <h2>Participants</h2>
             <div id="participantList" class="participant-list"></div>
+          </section>
+
+          <section class="panel danger-zone">
+            <h2>Reset</h2>
+            <div class="actions">
+              <button id="clearDatabaseButton" class="btn btn-secondary" type="button">Delete database names</button>
+            </div>
           </section>
         </aside>
       </section>
@@ -692,7 +775,7 @@
     </main>
   </div>
 
-  <script type="module" id="wheel-app">
+  <script type="text/plain" id="wheel-app-legacy">
     /**
      * @typedef {{ id: string, name: string, joinedAt: number, source: string }} Participant
      * @typedef {{ ok?: boolean, participants?: Participant[], joinUrl?: string, lanJoinUrls?: string[] }} ServerState
@@ -1523,6 +1606,988 @@
     }
 
     boot();
+  </script>
+
+  <script type="module" id="wheel-app">
+    /**
+     * @typedef {{ id: string, name: string, joinedAt: number | object, source: string, uid?: string, acceptedAt?: number | object, wonAt?: number | object, rank?: number }} Participant
+     * @typedef {{ x: number, y: number, vx: number, vy: number, color: string, size: number, life: number, rotation: number }} ConfettiPiece
+     */
+
+    const WINNER_TARGET = 5;
+    const LOCAL_STATE_KEY = "wheel2-state-v2";
+    const FIREBASE_CONFIG_KEY = "wheel2-firebase-config-v1";
+    const GAME_ID_KEY = "wheel2-game-id-v1";
+    const FIREBASE_SDK_VERSION = "12.13.0";
+    const COLORS = ["#d5522b", "#1e224e", "#8cadc6", "#bed7e4", "#091f2c", "#ec8a66"];
+
+    /** @type {any} */
+    let fb = null;
+    /** @type {ConfettiPiece[]} */
+    let confetti = [];
+    /** @type {null | (() => void)} */
+    let unsubscribeGame = null;
+
+    const state = {
+      participants: /** @type {Participant[]} */ ([]),
+      pending: /** @type {Participant[]} */ ([]),
+      winners: /** @type {Participant[]} */ ([]),
+      rotation: 0,
+      spinning: false,
+      firebaseReady: false,
+      firebaseConfig: /** @type {Record<string, string> | null} */ (null),
+      gameId: "",
+      joinUrl: "",
+      lastWinnerId: "",
+      ownerUid: "",
+      currentUid: "",
+      db: /** @type {any} */ (null),
+      auth: /** @type {any} */ (null)
+    };
+
+    const presenterView = qs("#presenterView");
+    const joinView = qs("#joinView");
+    const wheelCanvas = /** @type {HTMLCanvasElement} */ (qs("#wheelCanvas"));
+    const confettiCanvas = /** @type {HTMLCanvasElement} */ (qs("#confettiCanvas"));
+    const qrCanvas = /** @type {HTMLCanvasElement} */ (qs("#qrCanvas"));
+    const winnerName = qs("#winnerName");
+    const winnerKicker = qs("#winnerKicker");
+    const spinButton = /** @type {HTMLButtonElement} */ (qs("#spinButton"));
+    const resetWinnersButton = /** @type {HTMLButtonElement} */ (qs("#resetWinnersButton"));
+    const nameCount = qs("#nameCount");
+    const winnerCount = qs("#winnerCount");
+    const poolCount = qs("#poolCount");
+    const participantList = qs("#participantList");
+    const pendingList = qs("#pendingList");
+    const winnerList = qs("#winnerList");
+    const singleNameForm = /** @type {HTMLFormElement} */ (qs("#singleNameForm"));
+    const singleNameInput = /** @type {HTMLInputElement} */ (qs("#singleNameInput"));
+    const bulkNamesInput = /** @type {HTMLTextAreaElement} */ (qs("#bulkNamesInput"));
+    const bulkAddButton = /** @type {HTMLButtonElement} */ (qs("#bulkAddButton"));
+    const clearButton = /** @type {HTMLButtonElement} */ (qs("#clearButton"));
+    const clearDatabaseButton = /** @type {HTMLButtonElement} */ (qs("#clearDatabaseButton"));
+    const shuffleButton = /** @type {HTMLButtonElement} */ (qs("#shuffleButton"));
+    const approveAllButton = /** @type {HTMLButtonElement} */ (qs("#approveAllButton"));
+    const copyLinkButton = /** @type {HTMLButtonElement} */ (qs("#copyLinkButton"));
+    const openJoinButton = /** @type {HTMLAnchorElement} */ (qs("#openJoinButton"));
+    const compactPresenterButton = /** @type {HTMLButtonElement} */ (qs("#compactPresenterButton"));
+    const joinUrlElement = qs("#joinUrl");
+    const connectionStatus = qs("#connectionStatus");
+    const connectionText = qs("#connectionText");
+    const firebaseConfigInput = /** @type {HTMLTextAreaElement} */ (qs("#firebaseConfigInput"));
+    const gameIdInput = /** @type {HTMLInputElement} */ (qs("#gameIdInput"));
+    const connectFirebaseButton = /** @type {HTMLButtonElement} */ (qs("#connectFirebaseButton"));
+    const newGameButton = /** @type {HTMLButtonElement} */ (qs("#newGameButton"));
+    const firebaseStatusMessage = qs("#firebaseStatusMessage");
+    const joinForm = /** @type {HTMLFormElement} */ (qs("#joinForm"));
+    const joinNameInput = /** @type {HTMLInputElement} */ (qs("#joinNameInput"));
+    const joinResult = qs("#joinResult");
+
+    boot();
+
+    function boot() {
+      loadLocalState();
+      loadFirebaseConfigFromStorageOrUrl();
+      state.gameId = getUrlParam("game") || localStorage.getItem(GAME_ID_KEY) || createGameId();
+      gameIdInput.value = state.gameId;
+      updateJoinUrl();
+
+      const isJoin = new URLSearchParams(window.location.search).has("join") || window.location.pathname.endsWith("/join");
+      presenterView.classList.toggle("hidden", isJoin);
+      joinView.classList.toggle("hidden", !isJoin);
+
+      bindEvents();
+      render();
+      void connectFirebase({ silent: true });
+
+      window.addEventListener("resize", () => {
+        drawWheel();
+        void drawQrCode();
+      });
+      requestAnimationFrame(animateConfetti);
+    }
+
+    function bindEvents() {
+      connectFirebaseButton.addEventListener("click", () => void connectFirebase({ silent: false }));
+      newGameButton.addEventListener("click", () => {
+        state.gameId = createGameId();
+        gameIdInput.value = state.gameId;
+        localStorage.setItem(GAME_ID_KEY, state.gameId);
+        state.pending = [];
+        state.participants = [];
+        state.winners = [];
+        state.lastWinnerId = "";
+        if (unsubscribeGame) unsubscribeGame();
+        void connectFirebase({ silent: false });
+        render();
+      });
+
+      compactPresenterButton.addEventListener("click", async () => {
+        document.body.classList.add("presenter-compact");
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch {
+          // Fullscreen is best-effort; the compact layout still works without it.
+        }
+      });
+
+      document.addEventListener("keydown", async (event) => {
+        if (event.key === "Escape") {
+          document.body.classList.remove("presenter-compact");
+        }
+      });
+
+      spinButton.addEventListener("click", spinWheel);
+      resetWinnersButton.addEventListener("click", () => void resetWinners());
+      approveAllButton.addEventListener("click", () => void approveAllPending());
+
+      singleNameForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await addNamesToWheel([singleNameInput.value]);
+        singleNameInput.value = "";
+      });
+
+      bulkAddButton.addEventListener("click", async () => {
+        await addNamesToWheel(splitNames(bulkNamesInput.value));
+        bulkNamesInput.value = "";
+      });
+
+      shuffleButton.addEventListener("click", () => {
+        state.participants = shuffle(state.participants);
+        saveLocalState();
+        render();
+      });
+
+      clearButton.addEventListener("click", () => void clearDatabaseNames());
+      clearDatabaseButton.addEventListener("click", () => void clearDatabaseNames());
+
+      copyLinkButton.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(state.joinUrl);
+        copyLinkButton.textContent = "Copied";
+        window.setTimeout(() => {
+          copyLinkButton.textContent = "Copy link";
+        }, 1200);
+      });
+
+      participantList.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("[data-remove-wheel]") : null;
+        if (!target) return;
+        void removeName("wheel", target.getAttribute("data-remove-wheel") || "");
+      });
+
+      pendingList.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("[data-pending-action]") : null;
+        if (!target) return;
+        const action = target.getAttribute("data-pending-action") || "";
+        const id = target.getAttribute("data-pending-id") || "";
+        if (action === "approve") void approvePending(id);
+        if (action === "delete") void removeName("pending", id);
+      });
+
+      joinForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = cleanName(joinNameInput.value);
+        if (!name) return;
+
+        if (!state.firebaseReady) {
+          joinResult.textContent = "This QR code is not connected to Firebase yet.";
+          return;
+        }
+
+        const joinedKey = getJoinedStorageKey();
+        const previousName = localStorage.getItem(joinedKey);
+        if (previousName) {
+          joinResult.textContent = `You already joined as ${previousName}.`;
+          return;
+        }
+
+        joinResult.textContent = "Joining...";
+        try {
+          await addNameToPending(name);
+          localStorage.setItem(joinedKey, name);
+          joinNameInput.value = "";
+          joinResult.textContent = "You are on the pending list.";
+        } catch (error) {
+          joinResult.textContent = getFriendlyError(error);
+        }
+      });
+    }
+
+    /** @param {{ silent: boolean }} options */
+    async function connectFirebase(options) {
+      const parsedConfig = readConfigFromInputs();
+      const gameId = normalizeGameId(gameIdInput.value || state.gameId);
+
+      if (!parsedConfig || !gameId) {
+        state.firebaseReady = false;
+        updateFirebaseStatus(options.silent ? "" : "Paste a Firebase web app config and choose a game ID.");
+        updateJoinUrl();
+        render();
+        return;
+      }
+
+      state.firebaseConfig = parsedConfig;
+      state.gameId = gameId;
+      gameIdInput.value = gameId;
+      firebaseConfigInput.value = JSON.stringify(parsedConfig, null, 2);
+      localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(parsedConfig));
+      localStorage.setItem(GAME_ID_KEY, gameId);
+      updateJoinUrl();
+      updateFirebaseStatus("Connecting to Firebase...");
+
+      try {
+        fb = fb || await loadFirebaseModules();
+        const appName = `wheel2-${hashText(JSON.stringify(parsedConfig))}`;
+        const app = fb.getApps().some((item) => item.name === appName)
+          ? fb.getApp(appName)
+          : fb.initializeApp(parsedConfig, appName);
+
+        state.auth = fb.getAuth(app);
+        state.db = fb.getDatabase(app);
+        const credential = await fb.signInAnonymously(state.auth);
+        state.currentUid = credential.user.uid;
+        await ensureGameMeta();
+        subscribeToGame();
+        state.firebaseReady = true;
+        updateFirebaseStatus(isOwner() ? "Connected as presenter." : "Connected. This browser is not the presenter owner.");
+      } catch (error) {
+        state.firebaseReady = false;
+        updateFirebaseStatus(getFriendlyError(error));
+      }
+      render();
+    }
+
+    async function loadFirebaseModules() {
+      const appModule = await importFirebaseModule(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
+      const authModule = await importFirebaseModule(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`);
+      const databaseModule = await importFirebaseModule(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-database.js`);
+      return { ...appModule, ...authModule, ...databaseModule };
+    }
+
+    /** @param {string} url */
+    async function importFirebaseModule(url) {
+      // @ts-ignore Remote ESM modules are resolved by the browser at runtime.
+      return import(url);
+    }
+
+    async function ensureGameMeta() {
+      const metaRef = fb.ref(state.db, gamePath("meta"));
+      const snapshot = await fb.get(metaRef);
+      if (!snapshot.exists()) {
+        await fb.set(metaRef, {
+          ownerUid: state.currentUid,
+          title: "AgentCon Berlin 2026",
+          createdAt: fb.serverTimestamp()
+        });
+        state.ownerUid = state.currentUid;
+        return;
+      }
+      state.ownerUid = String(snapshot.val()?.ownerUid || "");
+    }
+
+    function subscribeToGame() {
+      if (unsubscribeGame) unsubscribeGame();
+      const rootRef = fb.ref(state.db, gamePath(""));
+      unsubscribeGame = fb.onValue(rootRef, (snapshot) => {
+        const game = snapshot.val() || {};
+        state.ownerUid = String(game.meta?.ownerUid || state.ownerUid || "");
+        state.pending = objectToParticipants(game.pending);
+        state.participants = objectToParticipants(game.wheel);
+        state.winners = objectToParticipants(game.winners).sort((left, right) => Number(left.rank || 0) - Number(right.rank || 0));
+        state.lastWinnerId = state.winners[state.winners.length - 1]?.id || "";
+        saveLocalState();
+        render();
+      });
+    }
+
+    /** @param {string[]} rawNames */
+    async function addNamesToWheel(rawNames) {
+      const names = rawNames.map(cleanName).filter(Boolean);
+      for (const name of names) {
+        if (state.firebaseReady) {
+          await addNameDirectlyToWheel(name);
+        } else {
+          upsertLocalParticipant(makeParticipant(name, "manual"));
+        }
+      }
+      saveLocalState();
+      render();
+    }
+
+    /** @param {string} name */
+    async function addNameToPending(name) {
+      const id = nameKey(name);
+      await assertNameAvailable(id);
+      const pendingRef = fb.ref(state.db, gamePath(`pending/${id}`));
+      const participant = makeParticipant(name, "qr");
+      participant.id = id;
+      participant.uid = state.currentUid;
+      participant.joinedAt = fb.serverTimestamp();
+      const result = await fb.runTransaction(pendingRef, (current) => current || participant);
+      if (!result.committed) throw new Error("That name is already pending.");
+    }
+
+    /** @param {string} name */
+    async function addNameDirectlyToWheel(name) {
+      const id = nameKey(name);
+      const pendingRef = fb.ref(state.db, gamePath(`pending/${id}`));
+      const pendingSnapshot = await fb.get(pendingRef);
+      if (pendingSnapshot.exists()) {
+        await approvePending(id);
+        return;
+      }
+
+      await assertNameAvailable(id);
+      const participant = makeParticipant(name, "manual");
+      participant.id = id;
+      participant.acceptedAt = fb.serverTimestamp();
+      const result = await fb.runTransaction(fb.ref(state.db, gamePath(`wheel/${id}`)), (current) => current || participant);
+      if (!result.committed) throw new Error("That name is already on the wheel.");
+    }
+
+    /** @param {string} id */
+    async function assertNameAvailable(id) {
+      const [wheelSnapshot, pendingSnapshot] = await Promise.all([
+        fb.get(fb.ref(state.db, gamePath(`wheel/${id}`))),
+        fb.get(fb.ref(state.db, gamePath(`pending/${id}`)))
+      ]);
+      if (wheelSnapshot.exists()) throw new Error("That name is already on the wheel.");
+      if (pendingSnapshot.exists()) throw new Error("That name is already pending.");
+    }
+
+    /** @param {string} id */
+    async function approvePending(id) {
+      const pendingRef = fb.ref(state.db, gamePath(`pending/${id}`));
+      const pendingSnapshot = await fb.get(pendingRef);
+      if (!pendingSnapshot.exists()) return;
+
+      const participant = pendingSnapshot.val();
+      participant.acceptedAt = fb.serverTimestamp();
+      const wheelRef = fb.ref(state.db, gamePath(`wheel/${id}`));
+      const result = await fb.runTransaction(wheelRef, (current) => current || participant);
+      if (result.committed) {
+        await fb.remove(pendingRef);
+      }
+    }
+
+    async function approveAllPending() {
+      for (const participant of state.pending) {
+        await approvePending(participant.id);
+      }
+    }
+
+    /** @param {"pending" | "wheel"} list @param {string} id */
+    async function removeName(list, id) {
+      if (!id) return;
+      if (state.firebaseReady) {
+        await fb.remove(fb.ref(state.db, gamePath(`${list}/${id}`)));
+        await fb.remove(fb.ref(state.db, gamePath(`winners/${id}`)));
+      } else {
+        state.participants = state.participants.filter((participant) => participant.id !== id);
+        state.pending = state.pending.filter((participant) => participant.id !== id);
+        state.winners = state.winners.filter((winner) => winner.id !== id);
+      }
+      saveLocalState();
+      render();
+    }
+
+    async function clearDatabaseNames() {
+      if (!window.confirm("Delete all pending names, wheel names, and winners for this game?")) return;
+      if (state.firebaseReady) {
+        await fb.update(fb.ref(state.db, gamePath("")), {
+          pending: null,
+          wheel: null,
+          winners: null
+        });
+      }
+      state.pending = [];
+      state.participants = [];
+      state.winners = [];
+      state.lastWinnerId = "";
+      saveLocalState();
+      render();
+    }
+
+    async function resetWinners() {
+      if (state.firebaseReady) {
+        await fb.remove(fb.ref(state.db, gamePath("winners")));
+      }
+      state.winners = [];
+      state.lastWinnerId = "";
+      saveLocalState();
+      render();
+    }
+
+    function spinWheel() {
+      const pool = getPool();
+      if (state.spinning || pool.length === 0 || state.winners.length >= WINNER_TARGET) return;
+
+      const winner = pool[randomInt(pool.length)];
+      const visualPool = getVisualPool();
+      const index = Math.max(0, visualPool.findIndex((participant) => participant.id === winner.id));
+      const arc = (Math.PI * 2) / visualPool.length;
+      const start = state.rotation;
+      const turns = 6 + randomInt(3);
+      const target = (Math.PI * 1.5) - (index + 0.5) * arc + turns * Math.PI * 2;
+      const duration = 4200;
+      const startTime = performance.now();
+
+      state.spinning = true;
+      spinButton.disabled = true;
+
+      function frame(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - progress, 4);
+        state.rotation = start + (target - start) * eased;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        state.rotation = normalizeAngle(target);
+        state.spinning = false;
+        state.lastWinnerId = winner.id;
+        const winnerRecord = { ...winner, rank: state.winners.length + 1, wonAt: Date.now() };
+        state.winners.push(winnerRecord);
+        saveWinner(winnerRecord);
+        launchConfetti();
+        saveLocalState();
+        render();
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    /** @param {Participant} winner */
+    function saveWinner(winner) {
+      if (!state.firebaseReady) return;
+      const payload = { ...winner, wonAt: fb.serverTimestamp() };
+      void fb.set(fb.ref(state.db, gamePath(`winners/${winner.id}`)), payload).catch((error) => {
+        updateFirebaseStatus(getFriendlyError(error));
+      });
+    }
+
+    function render() {
+      updateJoinUrl();
+      const pool = getPool();
+      const owner = isOwner();
+
+      nameCount.textContent = String(state.participants.length);
+      winnerCount.textContent = `${state.winners.length}/${WINNER_TARGET}`;
+      poolCount.textContent = String(pool.length);
+      spinButton.disabled = state.spinning || pool.length === 0 || state.winners.length >= WINNER_TARGET || (state.firebaseReady && !owner);
+      approveAllButton.disabled = state.pending.length === 0 || (state.firebaseReady && !owner);
+      resetWinnersButton.disabled = state.winners.length === 0 || (state.firebaseReady && !owner);
+      clearButton.disabled = state.firebaseReady && !owner;
+      clearDatabaseButton.disabled = state.firebaseReady && !owner;
+
+      connectionStatus.classList.toggle("is-online", state.firebaseReady);
+      connectionText.textContent = state.firebaseReady ? "Firebase live mode" : "Local setup mode";
+
+      const lastWinner = state.winners.find((winner) => winner.id === state.lastWinnerId);
+      if (lastWinner) {
+        winnerKicker.textContent = `Winner ${state.winners.length} of ${WINNER_TARGET}`;
+        winnerName.textContent = lastWinner.name;
+      } else if (state.winners.length >= WINNER_TARGET) {
+        winnerKicker.textContent = "Draw complete";
+        winnerName.textContent = "Five winners picked";
+      } else if (state.participants.length === 0) {
+        winnerKicker.textContent = "Ready for winner 1 of 5";
+        winnerName.textContent = state.pending.length > 0 ? `${state.pending.length} pending` : "Add names to start";
+      } else {
+        winnerKicker.textContent = `Ready for winner ${state.winners.length + 1} of ${WINNER_TARGET}`;
+        winnerName.textContent = `${pool.length} names in the pool`;
+      }
+
+      joinUrlElement.textContent = state.joinUrl;
+      openJoinButton.href = state.joinUrl;
+      renderParticipantList();
+      renderPendingList();
+      renderWinnerList();
+      drawWheel();
+      void drawQrCode();
+    }
+
+    function renderParticipantList() {
+      if (state.participants.length === 0) {
+        participantList.innerHTML = '<div class="empty">No names on the wheel yet</div>';
+        return;
+      }
+
+      participantList.innerHTML = state.participants
+        .map((participant) => `
+          <div class="participant">
+            <span title="${escapeHtml(participant.name)}">${escapeHtml(participant.name)}</span>
+            <button class="btn-icon" type="button" title="Delete ${escapeHtml(participant.name)}" aria-label="Delete ${escapeHtml(participant.name)}" data-remove-wheel="${participant.id}">&times;</button>
+          </div>
+        `)
+        .join("");
+    }
+
+    function renderPendingList() {
+      if (state.pending.length === 0) {
+        pendingList.innerHTML = '<div class="empty">No pending joins</div>';
+        return;
+      }
+
+      pendingList.innerHTML = state.pending
+        .map((participant) => `
+          <div class="pending">
+            <span title="${escapeHtml(participant.name)}">${escapeHtml(participant.name)}</span>
+            <div class="actions">
+              <button class="btn-icon" type="button" title="Add ${escapeHtml(participant.name)} to wheel" aria-label="Add ${escapeHtml(participant.name)} to wheel" data-pending-action="approve" data-pending-id="${participant.id}">+</button>
+              <button class="btn-icon" type="button" title="Delete ${escapeHtml(participant.name)}" aria-label="Delete ${escapeHtml(participant.name)}" data-pending-action="delete" data-pending-id="${participant.id}">&times;</button>
+            </div>
+          </div>
+        `)
+        .join("");
+    }
+
+    function renderWinnerList() {
+      if (state.winners.length === 0) {
+        winnerList.innerHTML = '<div class="empty">No winners yet</div>';
+        return;
+      }
+
+      winnerList.innerHTML = state.winners
+        .map((winner, index) => `
+          <div class="winner">
+            <span title="${escapeHtml(winner.name)}">${index + 1}. ${escapeHtml(winner.name)}</span>
+          </div>
+        `)
+        .join("");
+    }
+
+    function drawWheel() {
+      const context = wheelCanvas.getContext("2d");
+      if (!context) return;
+
+      const rect = wheelCanvas.getBoundingClientRect();
+      const cssSize = Math.max(320, Math.floor(Math.min(rect.width || 680, 760)));
+      const ratio = window.devicePixelRatio || 1;
+      wheelCanvas.width = Math.floor(cssSize * ratio);
+      wheelCanvas.height = Math.floor(cssSize * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, cssSize, cssSize);
+
+      const center = cssSize / 2;
+      const radius = center - 24;
+      const visualPool = getVisualPool();
+
+      context.save();
+      context.translate(center, center);
+
+      if (visualPool.length === 0) {
+        context.beginPath();
+        context.arc(0, 0, radius, 0, Math.PI * 2);
+        context.fillStyle = "#f6f7f8";
+        context.fill();
+        context.lineWidth = 2;
+        context.strokeStyle = "#e2e6ea";
+        context.stroke();
+        context.fillStyle = "#66737c";
+        context.font = "800 20px Montserrat, Segoe UI, sans-serif";
+        context.textAlign = "center";
+        context.fillText("Waiting for names", 0, 6);
+        context.restore();
+        return;
+      }
+
+      const arc = (Math.PI * 2) / visualPool.length;
+      visualPool.forEach((participant, index) => {
+        const start = state.rotation + index * arc;
+        const end = start + arc;
+        context.beginPath();
+        context.moveTo(0, 0);
+        context.arc(0, 0, radius, start, end);
+        context.closePath();
+        context.fillStyle = COLORS[index % COLORS.length];
+        context.fill();
+        context.lineWidth = visualPool.length > 80 ? 0.5 : 2;
+        context.strokeStyle = "rgba(255,255,255,0.82)";
+        context.stroke();
+
+        if (arc > 0.055) {
+          context.save();
+          context.rotate(start + arc / 2);
+          context.textAlign = "right";
+          context.fillStyle = index % COLORS.length === 3 ? "#091f2c" : "#ffffff";
+          context.font = `${arc > 0.16 ? 700 : 600} ${arc > 0.13 ? 15 : 11}px Open Sans, Segoe UI, sans-serif`;
+          context.fillText(trimForWheel(participant.name, arc), radius - 16, 4);
+          context.restore();
+        }
+      });
+
+      context.beginPath();
+      context.arc(0, 0, Math.max(58, radius * 0.17), 0, Math.PI * 2);
+      context.fillStyle = "#ffffff";
+      context.fill();
+      context.lineWidth = 7;
+      context.strokeStyle = "#d5522b";
+      context.stroke();
+
+      context.fillStyle = "#1e224e";
+      context.font = "800 18px Montserrat, Segoe UI, sans-serif";
+      context.textAlign = "center";
+      context.fillText(`${visualPool.length}`, 0, -2);
+      context.fillStyle = "#66737c";
+      context.font = "700 10px Open Sans, Segoe UI, sans-serif";
+      context.fillText("IN POOL", 0, 17);
+      context.restore();
+    }
+
+    async function drawQrCode() {
+      const context = qrCanvas.getContext("2d");
+      if (!context) return;
+
+      const size = Math.floor(qrCanvas.getBoundingClientRect().width || 160);
+      try {
+        await loadQrLibrary();
+        const createQr = /** @type {any} */ (window).qrcode;
+        const qr = createQr(0, "M");
+        qr.addData(state.joinUrl);
+        qr.make();
+        const ratio = window.devicePixelRatio || 1;
+        const modules = qr.getModuleCount();
+        const quiet = 4;
+        const cell = size / (modules + quiet * 2);
+        qrCanvas.width = Math.floor(size * ratio);
+        qrCanvas.height = Math.floor(size * ratio);
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, size, size);
+        context.fillStyle = "#091f2c";
+        for (let row = 0; row < modules; row += 1) {
+          for (let column = 0; column < modules; column += 1) {
+            if (qr.isDark(row, column)) {
+              context.fillRect((column + quiet) * cell, (row + quiet) * cell, Math.ceil(cell), Math.ceil(cell));
+            }
+          }
+        }
+      } catch {
+        qrCanvas.width = size;
+        qrCanvas.height = size;
+        context.clearRect(0, 0, size, size);
+        context.fillStyle = "#091f2c";
+        context.font = "700 16px Segoe UI, sans-serif";
+        context.textAlign = "center";
+        context.fillText("Copy link", size / 2, size / 2);
+      }
+    }
+
+    async function loadQrLibrary() {
+      if (typeof /** @type {any} */ (window).qrcode === "function") return;
+      await loadScript("https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js");
+    }
+
+    /** @param {string} src */
+    function loadScript(src) {
+      return new Promise((resolveLoad, rejectLoad) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+          existing.addEventListener("load", () => resolveLoad(undefined), { once: true });
+          existing.addEventListener("error", rejectLoad, { once: true });
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolveLoad(undefined);
+        script.onerror = rejectLoad;
+        document.head.append(script);
+      });
+    }
+
+    function launchConfetti() {
+      const rect = confettiCanvas.getBoundingClientRect();
+      const colors = ["#d5522b", "#1e224e", "#8cadc6", "#bed7e4", "#ffffff"];
+      confetti = Array.from({ length: 120 }, () => ({
+        x: rect.width / 2,
+        y: rect.height * 0.18,
+        vx: (random() - 0.5) * 9,
+        vy: random() * -7 - 2,
+        color: colors[randomInt(colors.length)],
+        size: random() * 8 + 4,
+        life: 1,
+        rotation: random() * Math.PI
+      }));
+    }
+
+    function animateConfetti() {
+      const context = confettiCanvas.getContext("2d");
+      if (context) {
+        const rect = confettiCanvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        confettiCanvas.width = Math.max(1, Math.floor(rect.width * ratio));
+        confettiCanvas.height = Math.max(1, Math.floor(rect.height * ratio));
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, rect.width, rect.height);
+
+        confetti = confetti.filter((piece) => piece.life > 0);
+        for (const piece of confetti) {
+          piece.vy += 0.22;
+          piece.x += piece.vx;
+          piece.y += piece.vy;
+          piece.rotation += 0.16;
+          piece.life -= 0.012;
+
+          context.save();
+          context.globalAlpha = Math.max(0, piece.life);
+          context.translate(piece.x, piece.y);
+          context.rotate(piece.rotation);
+          context.fillStyle = piece.color;
+          context.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.58);
+          context.restore();
+        }
+      }
+      requestAnimationFrame(animateConfetti);
+    }
+
+    function loadLocalState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(LOCAL_STATE_KEY) || "{}");
+        if (Array.isArray(saved.participants)) state.participants = saved.participants;
+        if (Array.isArray(saved.pending)) state.pending = saved.pending;
+        if (Array.isArray(saved.winners)) state.winners = saved.winners;
+        if (typeof saved.rotation === "number") state.rotation = saved.rotation;
+        if (typeof saved.lastWinnerId === "string") state.lastWinnerId = saved.lastWinnerId;
+      } catch {
+        localStorage.removeItem(LOCAL_STATE_KEY);
+      }
+    }
+
+    function saveLocalState() {
+      localStorage.setItem(
+        LOCAL_STATE_KEY,
+        JSON.stringify({
+          participants: state.participants,
+          pending: state.pending,
+          winners: state.winners,
+          rotation: state.rotation,
+          lastWinnerId: state.lastWinnerId
+        })
+      );
+    }
+
+    function loadFirebaseConfigFromStorageOrUrl() {
+      const urlConfig = decodeConfig(getUrlParam("cfg"));
+      const savedConfig = parseConfig(localStorage.getItem(FIREBASE_CONFIG_KEY) || "");
+      state.firebaseConfig = urlConfig || savedConfig;
+      if (state.firebaseConfig) {
+        firebaseConfigInput.value = JSON.stringify(state.firebaseConfig, null, 2);
+      }
+    }
+
+    function readConfigFromInputs() {
+      return parseConfig(firebaseConfigInput.value) || state.firebaseConfig;
+    }
+
+    /** @param {string} value */
+    function parseConfig(value) {
+      if (!value.trim()) return null;
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed && parsed.apiKey && parsed.projectId && parsed.databaseURL && parsed.appId) {
+          return parsed;
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    /** @param {string} encoded */
+    function decodeConfig(encoded) {
+      if (!encoded) return null;
+      try {
+        return parseConfig(base64UrlDecode(encoded));
+      } catch {
+        return null;
+      }
+    }
+
+    function updateJoinUrl() {
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("join", "1");
+      if (state.gameId) url.searchParams.set("game", state.gameId);
+      if (state.firebaseConfig) url.searchParams.set("cfg", base64UrlEncode(JSON.stringify(state.firebaseConfig)));
+      state.joinUrl = url.href;
+    }
+
+    /** @param {string} path */
+    function gamePath(path) {
+      const suffix = path ? `/${path}` : "";
+      return `games/${state.gameId}${suffix}`;
+    }
+
+    function isOwner() {
+      return Boolean(state.firebaseReady && state.currentUid && state.ownerUid && state.currentUid === state.ownerUid);
+    }
+
+    /** @param {Record<string, Participant> | undefined | null} input */
+    function objectToParticipants(input) {
+      return Object.entries(input || {})
+        .map(([id, value]) => ({ ...value, id }))
+        .sort((left, right) => String(left.name).localeCompare(String(right.name)));
+    }
+
+    /** @returns {Participant[]} */
+    function getPool() {
+      const winnerIds = new Set(state.winners.map((winner) => winner.id));
+      return state.participants.filter((participant) => !winnerIds.has(participant.id));
+    }
+
+    /** @returns {Participant[]} */
+    function getVisualPool() {
+      const pool = getPool();
+      return pool.length > 0 ? pool : state.participants;
+    }
+
+    /** @param {Participant} participant */
+    function upsertLocalParticipant(participant) {
+      const existing = state.participants.find((item) => item.id === participant.id || normalizeName(item.name) === normalizeName(participant.name));
+      if (existing) return;
+      state.participants.push(participant);
+    }
+
+    /** @param {string} name @param {string} source @returns {Participant} */
+    function makeParticipant(name, source) {
+      return {
+        id: nameKey(name),
+        name,
+        joinedAt: Date.now(),
+        source
+      };
+    }
+
+    /** @param {string} value */
+    function splitNames(value) {
+      return value.split(/[\n,;]+/).map(cleanName).filter(Boolean);
+    }
+
+    /** @param {string} value */
+    function cleanName(value) {
+      return value.replace(/\s+/g, " ").trim().slice(0, 80);
+    }
+
+    /** @param {string} value */
+    function normalizeName(value) {
+      return cleanName(value).toLocaleLowerCase("en-US");
+    }
+
+    /** @param {string} value */
+    function nameKey(value) {
+      return base64UrlEncode(normalizeName(value)).slice(0, 96);
+    }
+
+    function createGameId() {
+      return `agentcon-${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}`;
+    }
+
+    /** @param {string} value */
+    function normalizeGameId(value) {
+      return value.toLocaleLowerCase("en-US").replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
+    }
+
+    function getJoinedStorageKey() {
+      return `wheel2-joined-${state.gameId}`;
+    }
+
+    /** @param {string} name */
+    function getUrlParam(name) {
+      return new URLSearchParams(window.location.search).get(name) || "";
+    }
+
+    /** @param {string} value */
+    function base64UrlEncode(value) {
+      const bytes = new TextEncoder().encode(value);
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    /** @param {string} value */
+    function base64UrlDecode(value) {
+      const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+      const binary = atob(padded);
+      return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
+    }
+
+    /** @param {string} value */
+    function hashText(value) {
+      let hash = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        hash = Math.imul(31, hash) + value.charCodeAt(index) | 0;
+      }
+      return Math.abs(hash).toString(36);
+    }
+
+    /** @param {string} value */
+    function escapeHtml(value) {
+      return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    /** @param {string} name @param {number} arc */
+    function trimForWheel(name, arc) {
+      const max = arc > 0.18 ? 24 : arc > 0.1 ? 16 : 10;
+      return name.length > max ? `${name.slice(0, max - 1)}...` : name;
+    }
+
+    /** @param {unknown} error */
+    function getFriendlyError(error) {
+      const message = error instanceof Error ? error.message : String(error || "");
+      if (message.includes("PERMISSION_DENIED")) return "Firebase rules blocked that action.";
+      if (message.includes("already")) return message;
+      if (message.includes("auth")) return "Firebase anonymous auth is not enabled yet.";
+      return message || "Something went wrong.";
+    }
+
+    /** @param {string} message */
+    function updateFirebaseStatus(message) {
+      firebaseStatusMessage.textContent = message;
+    }
+
+    /** @template {Element} T @param {string} selector @param {ParentNode} [root] @returns {T} */
+    function qs(selector, root = document) {
+      const element = root.querySelector(selector);
+      if (!element) throw new Error(`Missing element: ${selector}`);
+      return /** @type {T} */ (element);
+    }
+
+    /** @template T @param {T[]} values @returns {T[]} */
+    function shuffle(values) {
+      const copy = [...values];
+      for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomInt(index + 1);
+        [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+      }
+      return copy;
+    }
+
+    function random() {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return (array[0] || 0) / 2 ** 32;
+    }
+
+    /** @param {number} max */
+    function randomInt(max) {
+      return Math.floor(random() * max);
+    }
+
+    /** @param {number} angle */
+    function normalizeAngle(angle) {
+      const full = Math.PI * 2;
+      return ((angle % full) + full) % full;
+    }
   </script>
 </body>
 </html>

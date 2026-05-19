@@ -27,6 +27,7 @@ const result = spawnSync(
     "--noEmit",
     "--target",
     "ES2022",
+    "--skipLibCheck",
     "--lib",
     "DOM,DOM.Iterable,ES2022",
     appPath

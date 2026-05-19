@@ -6,9 +6,14 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node tools/check-index.mjs"
+    "check": "node --check server.mjs && node tools/check-index.mjs",
+    "firebase": "firebase",
+    "firebase:login": "firebase login",
+    "firebase:rules": "firebase deploy --only database"
   },
   "devDependencies": {
+    "firebase-tools": "^15.18.0",
+    "playwright": "^1.60.0",
     "typescript": "^5.9.3"
   }
 }

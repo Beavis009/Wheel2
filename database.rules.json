@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "games": {
+      "$gameId": {
+        ".read": "auth != null",
+        "meta": {
+          ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['ownerUid', 'title', 'createdAt']) && newData.child('ownerUid').isString()"
+        },
+        "pending": {
+          "$nameKey": {
+            ".write": "auth != null && ((!data.exists() && !root.child('games').child($gameId).child('wheel').child($nameKey).exists() && newData.child('uid').val() === auth.uid) || root.child('games').child($gameId).child('meta').child('ownerUid').val() === auth.uid)",
+            ".validate": "newData.exists() ? newData.hasChildren(['id', 'name', 'joinedAt', 'source', 'uid']) && newData.child('id').val() === $nameKey && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('source').val() === 'qr' : true"
+          }
+        },
+        "wheel": {
+          "$nameKey": {
+            ".write": "auth != null && root.child('games').child($gameId).child('meta').child('ownerUid').val() === auth.uid",
+            ".validate": "newData.exists() ? newData.hasChildren(['id', 'name', 'joinedAt', 'source']) && newData.child('id').val() === $nameKey && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 : true"
+          }
+        },
+        "winners": {
+          "$nameKey": {
+            ".write": "auth != null && root.child('games').child($gameId).child('meta').child('ownerUid').val() === auth.uid",
+            ".validate": "newData.exists() ? newData.hasChildren(['id', 'name', 'rank']) && newData.child('id').val() === $nameKey && newData.child('name').isString() && newData.child('rank').isNumber() : true"
+          }
+        }
+      }
+    }
+  }
+}
