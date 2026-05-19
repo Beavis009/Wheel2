@@ -1,0 +1,14 @@
+{
+  "name": "wheel2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A GDPR-friendly Global AI Community wheel of names for AgentCon Berlin.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node tools/check-index.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

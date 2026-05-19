@@ -1,0 +1,1528 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Wheel2 | Global AI Community</title>
+  <meta name="description" content="A GDPR-friendly wheel of names for Global AI Community events.">
+  <style>
+    :root {
+      --ink: #091f2c;
+      --navy: #1e224e;
+      --orange: #d5522b;
+      --blue: #8cadc6;
+      --soft-blue: #bed7e4;
+      --paper: #ffffff;
+      --page: #f6f7f8;
+      --line: #e2e6ea;
+      --muted: #66737c;
+      --shadow: 0 18px 60px rgba(9, 31, 44, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--page);
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 6%, rgba(190, 215, 228, 0.55), transparent 26rem),
+        linear-gradient(180deg, #fff 0%, var(--page) 46%, #fff 100%);
+      font-family: "Open Sans", "Segoe UI", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    h1,
+    h2,
+    h3,
+    .brand-font {
+      margin: 0;
+      font-family: Montserrat, "Segoe UI", Arial, sans-serif;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .app-shell {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 18px 0 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 4px 0 20px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .logo svg {
+      width: clamp(164px, 21vw, 240px);
+      height: auto;
+      display: block;
+    }
+
+    .event-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--orange);
+      font-family: Montserrat, "Segoe UI", Arial, sans-serif;
+      font-size: 0.84rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      max-width: 820px;
+      font-size: clamp(2rem, 4.3vw, 4.75rem);
+      line-height: 0.98;
+      color: var(--ink);
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin-top: 12px;
+      font-size: clamp(1rem, 1.4vw, 1.16rem);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-self: end;
+      min-height: 36px;
+      padding: 8px 14px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #b8c0c7;
+    }
+
+    .status-pill.is-online .status-dot {
+      background: #25a55f;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(440px, 1.1fr) minmax(340px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stage {
+      min-width: 0;
+      padding: 18px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .wheel-wrap {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: min(68vh, 720px);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(30, 34, 78, 0.05), rgba(213, 82, 43, 0.08)),
+        #fff;
+      overflow: hidden;
+    }
+
+    .wheel-wrap::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 1px dashed rgba(30, 34, 78, 0.18);
+      border-radius: var(--radius);
+      pointer-events: none;
+    }
+
+    #wheelCanvas {
+      width: min(100%, 680px);
+      aspect-ratio: 1;
+      display: block;
+      z-index: 1;
+    }
+
+    #confettiCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .pointer {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      z-index: 2;
+      width: 0;
+      height: 0;
+      border-left: 22px solid transparent;
+      border-right: 22px solid transparent;
+      border-top: 42px solid var(--orange);
+      transform: translateX(-50%);
+      filter: drop-shadow(0 6px 10px rgba(9, 31, 44, 0.22));
+    }
+
+    .winner-banner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 16px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .winner-banner strong {
+      display: block;
+      color: var(--orange);
+      font-family: Montserrat, "Segoe UI", Arial, sans-serif;
+      font-size: clamp(1.2rem, 2.4vw, 2.4rem);
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      background: var(--navy);
+      color: #fff;
+      font-family: Montserrat, "Segoe UI", Arial, sans-serif;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(9, 31, 44, 0.14);
+    }
+
+    .btn-primary {
+      background: var(--orange);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--ink);
+      border: 2px solid var(--line);
+    }
+
+    .btn-icon {
+      width: 36px;
+      min-height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--ink);
+      border: 2px solid var(--line);
+      font-weight: 900;
+    }
+
+    .side {
+      display: grid;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .panel {
+      padding: 16px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .panel h2 {
+      margin-bottom: 12px;
+      font-size: 1.1rem;
+      color: var(--ink);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--page);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-family: Montserrat, "Segoe UI", Arial, sans-serif;
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      min-width: 0;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 4px rgba(213, 82, 43, 0.12);
+    }
+
+    textarea {
+      min-height: 94px;
+      resize: vertical;
+    }
+
+    .qr-grid {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+    }
+
+    #qrCanvas {
+      width: 160px;
+      height: 160px;
+      border: 10px solid #fff;
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: inset 0 0 0 2px var(--line);
+    }
+
+    .link-box {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .join-url {
+      display: block;
+      max-height: 72px;
+      padding: 10px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--page);
+      color: var(--ink);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      overflow: auto;
+      overflow-wrap: anywhere;
+    }
+
+    .participant-list,
+    .winner-list {
+      display: grid;
+      gap: 8px;
+      max-height: 270px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .participant,
+    .winner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 8px 8px 12px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .participant span,
+    .winner span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .winner {
+      border-color: rgba(213, 82, 43, 0.35);
+      background: rgba(213, 82, 43, 0.06);
+    }
+
+    .empty {
+      padding: 12px;
+      border: 2px dashed var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    .join-screen {
+      display: grid;
+      min-height: calc(100vh - 46px);
+      place-items: center;
+      padding: 24px 0 48px;
+    }
+
+    .join-card {
+      width: min(560px, 100%);
+      padding: clamp(18px, 4vw, 34px);
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .join-card h1 {
+      margin: 18px 0 8px;
+      font-size: clamp(2.1rem, 8vw, 4.4rem);
+      line-height: 0.95;
+    }
+
+    .join-card .logo svg {
+      width: min(260px, 80vw);
+    }
+
+    .join-result {
+      min-height: 24px;
+      color: var(--orange);
+      font-weight: 800;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1040px) {
+      .layout,
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .status-pill {
+        justify-self: start;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app-shell {
+        width: min(100% - 20px, 1440px);
+        padding-top: 10px;
+      }
+
+      .topbar,
+      .winner-banner,
+      .qr-grid,
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .stage {
+        padding: 10px;
+      }
+
+      .wheel-wrap {
+        min-height: auto;
+        padding: 16px 0;
+      }
+
+      .actions,
+      .winner-banner {
+        justify-content: stretch;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="Global AI Community">
+      <div class="logo" aria-label="Global AI Community">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 347.84 100.71" role="img" aria-label="Global AI Community logo"><defs><style>.cls-1{fill:#8cadc6}.cls-2{fill:#fff}.cls-3{fill:#d5522b}.cls-4{fill:#1e224e}</style></defs><path class="cls-1" d="M33.78 9.63a29 29 0 0 0-.05 56.08 29.13 29.13 0 0 0 .05-56.08Z"/><path class="cls-2" d="M33.16 43.33a5.67 5.67 0 1 0-5.67-5.67 5.67 5.67 0 0 0 5.67 5.67"/><path class="cls-3" d="M18.75 81.77a6.34 6.34 0 0 1 0-8.87v-.06l0 0 2.89-2.92a36.84 36.84 0 0 0 19.25 5.41 37.75 37.75 0 0 0 31.69-57.46l5.52-5.58L66.15.22l-5.48 5.53A36.76 36.76 0 0 0 40.89 0 37.74 37.74 0 0 0 9.53 58l-2.74 2.77a23.44 23.44 0 0 0 16.36 39.94H69v-17.1H23.15a6.16 6.16 0 0 1-4.4-1.84Zm22-73a28.93 28.93 0 1 1-28.56 28.9A28.77 28.77 0 0 1 40.8 8.75Z"/><path class="cls-4" d="M292.35 34.51h9.16V1.21h-9.16Zm-24.5-13.08 3.22-10 3.17 10Zm10.56 13.08h10l-11.9-33.3h-10.8l-11.9 33.3h9.84l1.49-4.59h11.75Z"/><path class="cls-4" d="M107.18 16.83a3.51 3.51 0 1 1-3.74 3.5 3.51 3.51 0 0 1 3.74-3.5M112.06 34h-7.18c-1.15 0-1.92-.63-1.92-1.54a2 2 0 0 1 1.1-1.67 16.05 16.05 0 0 0 3.12.33c6.61 0 11.69-4.65 11.69-10.83a10.51 10.51 0 0 0-1.82-5.94 2.16 2.16 0 0 1 2.1-1.2h1.73V6h-2.11c-3.4 0-5.94 1.72-6.71 4.4a13.49 13.49 0 0 0-4.88-.91c-6.71 0-11.74 4.65-11.74 10.83A10.49 10.49 0 0 0 98.65 28a7.73 7.73 0 0 0-3.45 6.52c0 4.21 3.26 7 8.14 7h7.24a2.91 2.91 0 0 1 3.16 2.4l8-2.21c-1-4.84-4.65-7.66-9.68-7.66"/><path class="cls-4" d="M233.83 0H226v26.27c0 5.57 3.26 8.83 8.73 8.83a15.45 15.45 0 0 0 5-.82l-.87-6.53a9 9 0 0 1-2.49.35c-1.92 0-2.59-.92-2.59-2.69Z"/><path class="cls-4" d="M131.58 0h-7.82v26.27c0 5.57 3.26 8.83 8.74 8.83a15.39 15.39 0 0 0 5-.82l-.86-6.53a9.09 9.09 0 0 1-2.49.35c-1.92 0-2.6-.92-2.6-2.69Z"/><path class="cls-4" d="M209.32 27.57a5.1 5.1 0 0 1-5.23-5.27 5.25 5.25 0 1 1 10.5 0 5.14 5.14 0 0 1-5.27 5.27m5.27-17.49v2a9.92 9.92 0 0 0-6.81-2.59c-6.66 0-11.69 5.51-11.69 12.8s5 12.79 11.69 12.79a9.92 9.92 0 0 0 6.81-2.59v2h7.76V10.08ZM180.52 27.57a5.14 5.14 0 0 1-5.28-5.27 5.25 5.25 0 1 1 10.5 0 5.1 5.1 0 0 1-5.22 5.27M182.05 9.5a9.94 9.94 0 0 0-6.81 2.59V0h-7.76v34.51h7.76v-2a9.94 9.94 0 0 0 6.81 2.59c6.66 0 11.69-5.51 11.69-12.79s-5-12.8-11.69-12.8M151.32 27.57a5.14 5.14 0 0 1-5.27-5.27 5.25 5.25 0 1 1 10.49 0 5.12 5.12 0 0 1-5.22 5.27m0 7.52c7.52 0 13.23-5.51 13.23-12.79S158.84 9.5 151.32 9.5 138.1 15 138.1 22.3s5.65 12.79 13.22 12.79"/><path class="cls-4" d="m339.17 50.53-4.93 14.33-4.94-14.33h-8.86l9.48 23.91-.43 1A2.55 2.55 0 0 1 327 77.12a4.34 4.34 0 0 1-2.78-1.1l-3 6.09a12 12 0 0 0 7.05 2.54 9 9 0 0 0 8.28-6l11.26-28.08ZM318.9 57.62v-7.09h-6v-5.89h-7.76v22c0 5.18 2.68 8.91 9 8.91a9.65 9.65 0 0 0 4.79-1.1v-7.24a7 7 0 0 1-3.11.81c-2 0-2.88-1-2.88-2.68v-7.72ZM293.28 75H301V50.53h-7.76Zm3.88-27.07a4.72 4.72 0 1 0-4.74-4.7 4.6 4.6 0 0 0 4.74 4.7M279.51 50a9.76 9.76 0 0 0-7 2.73v-2.2h-7.76V75h7.76V61.79a4.12 4.12 0 0 1 4.41-4.31A3.89 3.89 0 0 1 281 61.7V75h7.76V59.11c0-5.51-3.69-9.15-9.2-9.15M248.45 75.54c7 0 11.69-4.12 11.69-10.35V50.53h-7.76v13.56a3.93 3.93 0 0 1-7.86 0V50.53h-7.76v14.66c0 6.23 4.65 10.35 11.69 10.35M223.45 50a10 10 0 0 0-7.95 3.54 8.45 8.45 0 0 0-7.29-3.54 9.3 9.3 0 0 0-6.66 2.63v-2.1h-7.76V75h7.76V61.41a3.8 3.8 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75H217V61.41a3.76 3.76 0 0 1 4-3.93 3.53 3.53 0 0 1 3.68 3.83V75h7.77V59c0-5.47-3.5-9-9-9m-43.39 0a10 10 0 0 0-7.95 3.54 8.42 8.42 0 0 0-7.28-3.54 9.26 9.26 0 0 0-6.66 2.63v-2.1h-7.76V75h7.76V61.41a3.79 3.79 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75h7.76V61.41a3.76 3.76 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75h7.76V59c0-5.47-3.5-9-9-9M133.77 68A5.27 5.27 0 1 1 139 62.75a5.14 5.14 0 0 1-5.23 5.25m0 7.52C141.29 75.54 147 70 147 62.75S141.29 50 133.77 50s-13.23 5.51-13.23 12.79 5.65 12.79 13.23 12.79m-25.47 0a13 13 0 0 0 11.31-6l-6.76-4.12a5.28 5.28 0 1 1 0-5.27l6.76-4.13a13 13 0 0 0-11.31-6c-7.57 0-13.22 5.51-13.22 12.79s5.65 12.79 13.22 12.79"/></svg>
+      </div>
+      <span class="event-tag">AgentCon Berlin 2026</span>
+    </header>
+
+    <main id="presenterView">
+      <section class="hero">
+        <div>
+          <h1>Community Wheel</h1>
+          <p>Private names, live QR joins, and five clean winner draws for the Global AI Community.</p>
+        </div>
+        <div id="connectionStatus" class="status-pill" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="connectionText">Static mode</span>
+        </div>
+      </section>
+
+      <section class="layout">
+        <div class="stage">
+          <div class="wheel-wrap">
+            <div class="pointer" aria-hidden="true"></div>
+            <canvas id="wheelCanvas" width="900" height="900" aria-label="Wheel of names"></canvas>
+            <canvas id="confettiCanvas" width="900" height="640" aria-hidden="true"></canvas>
+          </div>
+
+          <div class="winner-banner">
+            <div>
+              <p id="winnerKicker">Ready for winner 1 of 5</p>
+              <strong id="winnerName">Add names to start</strong>
+            </div>
+            <div class="actions">
+              <button id="spinButton" class="btn btn-primary" type="button">Draw next winner</button>
+              <button id="resetWinnersButton" class="btn btn-secondary" type="button">Reset winners</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side" aria-label="Wheel controls">
+          <section class="panel">
+            <div class="metrics">
+              <div class="metric">
+                <span>Names</span>
+                <strong id="nameCount">0</strong>
+              </div>
+              <div class="metric">
+                <span>Winners</span>
+                <strong id="winnerCount">0/5</strong>
+              </div>
+              <div class="metric">
+                <span>Pool</span>
+                <strong id="poolCount">0</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Join QR</h2>
+            <div class="qr-grid">
+              <canvas id="qrCanvas" width="256" height="256" aria-label="QR code for joining the wheel"></canvas>
+              <div class="link-box">
+                <span id="joinUrl" class="join-url"></span>
+                <div class="actions">
+                  <button id="copyLinkButton" class="btn btn-secondary" type="button">Copy link</button>
+                  <a id="openJoinButton" class="btn" href="?join=1" target="_blank" rel="noreferrer">Open join</a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Add names</h2>
+            <div class="stack">
+              <form id="singleNameForm" class="form-row">
+                <label>
+                  Name
+                  <input id="singleNameInput" autocomplete="off" maxlength="80" placeholder="Ada Lovelace">
+                </label>
+                <button class="btn btn-primary" type="submit">Add</button>
+              </form>
+              <label>
+                Bulk paste
+                <textarea id="bulkNamesInput" placeholder="One name per line"></textarea>
+              </label>
+              <div class="actions">
+                <button id="bulkAddButton" class="btn btn-secondary" type="button">Add bulk</button>
+                <button id="shuffleButton" class="btn btn-secondary" type="button">Shuffle</button>
+                <button id="clearButton" class="btn btn-secondary" type="button">Clear</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Winners</h2>
+            <div id="winnerList" class="winner-list"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Participants</h2>
+            <div id="participantList" class="participant-list"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <main id="joinView" class="join-screen hidden">
+      <section class="join-card">
+        <div class="logo" aria-label="Global AI Community">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 347.84 100.71" role="img" aria-label="Global AI Community logo"><defs><style>.cls-1{fill:#8cadc6}.cls-2{fill:#fff}.cls-3{fill:#d5522b}.cls-4{fill:#1e224e}</style></defs><path class="cls-1" d="M33.78 9.63a29 29 0 0 0-.05 56.08 29.13 29.13 0 0 0 .05-56.08Z"/><path class="cls-2" d="M33.16 43.33a5.67 5.67 0 1 0-5.67-5.67 5.67 5.67 0 0 0 5.67 5.67"/><path class="cls-3" d="M18.75 81.77a6.34 6.34 0 0 1 0-8.87v-.06l0 0 2.89-2.92a36.84 36.84 0 0 0 19.25 5.41 37.75 37.75 0 0 0 31.69-57.46l5.52-5.58L66.15.22l-5.48 5.53A36.76 36.76 0 0 0 40.89 0 37.74 37.74 0 0 0 9.53 58l-2.74 2.77a23.44 23.44 0 0 0 16.36 39.94H69v-17.1H23.15a6.16 6.16 0 0 1-4.4-1.84Zm22-73a28.93 28.93 0 1 1-28.56 28.9A28.77 28.77 0 0 1 40.8 8.75Z"/><path class="cls-4" d="M292.35 34.51h9.16V1.21h-9.16Zm-24.5-13.08 3.22-10 3.17 10Zm10.56 13.08h10l-11.9-33.3h-10.8l-11.9 33.3h9.84l1.49-4.59h11.75Z"/><path class="cls-4" d="M107.18 16.83a3.51 3.51 0 1 1-3.74 3.5 3.51 3.51 0 0 1 3.74-3.5M112.06 34h-7.18c-1.15 0-1.92-.63-1.92-1.54a2 2 0 0 1 1.1-1.67 16.05 16.05 0 0 0 3.12.33c6.61 0 11.69-4.65 11.69-10.83a10.51 10.51 0 0 0-1.82-5.94 2.16 2.16 0 0 1 2.1-1.2h1.73V6h-2.11c-3.4 0-5.94 1.72-6.71 4.4a13.49 13.49 0 0 0-4.88-.91c-6.71 0-11.74 4.65-11.74 10.83A10.49 10.49 0 0 0 98.65 28a7.73 7.73 0 0 0-3.45 6.52c0 4.21 3.26 7 8.14 7h7.24a2.91 2.91 0 0 1 3.16 2.4l8-2.21c-1-4.84-4.65-7.66-9.68-7.66"/><path class="cls-4" d="M233.83 0H226v26.27c0 5.57 3.26 8.83 8.73 8.83a15.45 15.45 0 0 0 5-.82l-.87-6.53a9 9 0 0 1-2.49.35c-1.92 0-2.59-.92-2.59-2.69Z"/><path class="cls-4" d="M131.58 0h-7.82v26.27c0 5.57 3.26 8.83 8.74 8.83a15.39 15.39 0 0 0 5-.82l-.86-6.53a9.09 9.09 0 0 1-2.49.35c-1.92 0-2.6-.92-2.6-2.69Z"/><path class="cls-4" d="M209.32 27.57a5.1 5.1 0 0 1-5.23-5.27 5.25 5.25 0 1 1 10.5 0 5.14 5.14 0 0 1-5.27 5.27m5.27-17.49v2a9.92 9.92 0 0 0-6.81-2.59c-6.66 0-11.69 5.51-11.69 12.8s5 12.79 11.69 12.79a9.92 9.92 0 0 0 6.81-2.59v2h7.76V10.08ZM180.52 27.57a5.14 5.14 0 0 1-5.28-5.27 5.25 5.25 0 1 1 10.5 0 5.1 5.1 0 0 1-5.22 5.27M182.05 9.5a9.94 9.94 0 0 0-6.81 2.59V0h-7.76v34.51h7.76v-2a9.94 9.94 0 0 0 6.81 2.59c6.66 0 11.69-5.51 11.69-12.79s-5-12.8-11.69-12.8M151.32 27.57a5.14 5.14 0 0 1-5.27-5.27 5.25 5.25 0 1 1 10.49 0 5.12 5.12 0 0 1-5.22 5.27m0 7.52c7.52 0 13.23-5.51 13.23-12.79S158.84 9.5 151.32 9.5 138.1 15 138.1 22.3s5.65 12.79 13.22 12.79"/><path class="cls-4" d="m339.17 50.53-4.93 14.33-4.94-14.33h-8.86l9.48 23.91-.43 1A2.55 2.55 0 0 1 327 77.12a4.34 4.34 0 0 1-2.78-1.1l-3 6.09a12 12 0 0 0 7.05 2.54 9 9 0 0 0 8.28-6l11.26-28.08ZM318.9 57.62v-7.09h-6v-5.89h-7.76v22c0 5.18 2.68 8.91 9 8.91a9.65 9.65 0 0 0 4.79-1.1v-7.24a7 7 0 0 1-3.11.81c-2 0-2.88-1-2.88-2.68v-7.72ZM293.28 75H301V50.53h-7.76Zm3.88-27.07a4.72 4.72 0 1 0-4.74-4.7 4.6 4.6 0 0 0 4.74 4.7M279.51 50a9.76 9.76 0 0 0-7 2.73v-2.2h-7.76V75h7.76V61.79a4.12 4.12 0 0 1 4.41-4.31A3.89 3.89 0 0 1 281 61.7V75h7.76V59.11c0-5.51-3.69-9.15-9.2-9.15M248.45 75.54c7 0 11.69-4.12 11.69-10.35V50.53h-7.76v13.56a3.93 3.93 0 0 1-7.86 0V50.53h-7.76v14.66c0 6.23 4.65 10.35 11.69 10.35M223.45 50a10 10 0 0 0-7.95 3.54 8.45 8.45 0 0 0-7.29-3.54 9.3 9.3 0 0 0-6.66 2.63v-2.1h-7.76V75h7.76V61.41a3.8 3.8 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75H217V61.41a3.76 3.76 0 0 1 4-3.93 3.53 3.53 0 0 1 3.68 3.83V75h7.77V59c0-5.47-3.5-9-9-9m-43.39 0a10 10 0 0 0-7.95 3.54 8.42 8.42 0 0 0-7.28-3.54 9.26 9.26 0 0 0-6.66 2.63v-2.1h-7.76V75h7.76V61.41a3.79 3.79 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75h7.76V61.41a3.76 3.76 0 0 1 4-3.93 3.53 3.53 0 0 1 3.69 3.83V75h7.76V59c0-5.47-3.5-9-9-9M133.77 68A5.27 5.27 0 1 1 139 62.75a5.14 5.14 0 0 1-5.23 5.25m0 7.52C141.29 75.54 147 70 147 62.75S141.29 50 133.77 50s-13.23 5.51-13.23 12.79 5.65 12.79 13.23 12.79m-25.47 0a13 13 0 0 0 11.31-6l-6.76-4.12a5.28 5.28 0 1 1 0-5.27l6.76-4.13a13 13 0 0 0-11.31-6c-7.57 0-13.22 5.51-13.22 12.79s5.65 12.79 13.22 12.79"/></svg>
+        </div>
+        <h1>Join the wheel</h1>
+        <p>Enter the display name you want on the draw.</p>
+        <form id="joinForm" class="stack" style="margin-top: 20px;">
+          <label>
+            Display name
+            <input id="joinNameInput" autocomplete="name" maxlength="80" placeholder="Your name" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Join wheel</button>
+          <p id="joinResult" class="join-result" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" id="wheel-app">
+    /**
+     * @typedef {{ id: string, name: string, joinedAt: number, source: string }} Participant
+     * @typedef {{ ok?: boolean, participants?: Participant[], joinUrl?: string, lanJoinUrls?: string[] }} ServerState
+     * @typedef {{ x: number, y: number, vx: number, vy: number, color: string, size: number, life: number, rotation: number }} ConfettiPiece
+     */
+
+    const WINNER_TARGET = 5;
+    const STORAGE_KEY = "wheel2-state-v1";
+    const COLORS = ["#d5522b", "#1e224e", "#8cadc6", "#bed7e4", "#091f2c", "#ec8a66"];
+
+    /** @type {{ participants: Participant[], winners: Participant[], rotation: number, spinning: boolean, apiOnline: boolean, joinUrl: string, lastWinnerId: string }} */
+    const state = {
+      participants: [],
+      winners: [],
+      rotation: 0,
+      spinning: false,
+      apiOnline: false,
+      joinUrl: getDefaultJoinUrl(),
+      lastWinnerId: ""
+    };
+
+    /** @type {ConfettiPiece[]} */
+    let confetti = [];
+    /** @type {EventSource | null} */
+    let eventSource = null;
+
+    const presenterView = qs("#presenterView");
+    const joinView = qs("#joinView");
+    const wheelCanvas = /** @type {HTMLCanvasElement} */ (qs("#wheelCanvas"));
+    const confettiCanvas = /** @type {HTMLCanvasElement} */ (qs("#confettiCanvas"));
+    const qrCanvas = /** @type {HTMLCanvasElement} */ (qs("#qrCanvas"));
+    const winnerName = qs("#winnerName");
+    const winnerKicker = qs("#winnerKicker");
+    const spinButton = /** @type {HTMLButtonElement} */ (qs("#spinButton"));
+    const resetWinnersButton = /** @type {HTMLButtonElement} */ (qs("#resetWinnersButton"));
+    const nameCount = qs("#nameCount");
+    const winnerCount = qs("#winnerCount");
+    const poolCount = qs("#poolCount");
+    const participantList = qs("#participantList");
+    const winnerList = qs("#winnerList");
+    const singleNameForm = /** @type {HTMLFormElement} */ (qs("#singleNameForm"));
+    const singleNameInput = /** @type {HTMLInputElement} */ (qs("#singleNameInput"));
+    const bulkNamesInput = /** @type {HTMLTextAreaElement} */ (qs("#bulkNamesInput"));
+    const bulkAddButton = /** @type {HTMLButtonElement} */ (qs("#bulkAddButton"));
+    const clearButton = /** @type {HTMLButtonElement} */ (qs("#clearButton"));
+    const shuffleButton = /** @type {HTMLButtonElement} */ (qs("#shuffleButton"));
+    const copyLinkButton = /** @type {HTMLButtonElement} */ (qs("#copyLinkButton"));
+    const openJoinButton = /** @type {HTMLAnchorElement} */ (qs("#openJoinButton"));
+    const joinUrlElement = qs("#joinUrl");
+    const connectionStatus = qs("#connectionStatus");
+    const connectionText = qs("#connectionText");
+    const joinForm = /** @type {HTMLFormElement} */ (qs("#joinForm"));
+    const joinNameInput = /** @type {HTMLInputElement} */ (qs("#joinNameInput"));
+    const joinResult = qs("#joinResult");
+
+    function boot() {
+      loadLocalState();
+      const isJoin = new URLSearchParams(window.location.search).has("join") || window.location.pathname.endsWith("/join");
+      presenterView.classList.toggle("hidden", isJoin);
+      joinView.classList.toggle("hidden", !isJoin);
+      bindEvents();
+      render();
+      connectServer();
+      window.addEventListener("resize", () => {
+        drawWheel();
+        drawQrCode();
+      });
+
+      if (!isJoin) {
+        requestAnimationFrame(animateConfetti);
+      }
+    }
+
+    function bindEvents() {
+      spinButton.addEventListener("click", spinWheel);
+      resetWinnersButton.addEventListener("click", () => {
+        state.winners = [];
+        state.lastWinnerId = "";
+        saveLocalState();
+        render();
+      });
+
+      singleNameForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await addNames([singleNameInput.value], "manual");
+        singleNameInput.value = "";
+      });
+
+      bulkAddButton.addEventListener("click", async () => {
+        await addNames(splitNames(bulkNamesInput.value), "manual");
+        bulkNamesInput.value = "";
+      });
+
+      shuffleButton.addEventListener("click", () => {
+        state.participants = shuffle(state.participants);
+        saveLocalState();
+        render();
+      });
+
+      clearButton.addEventListener("click", async () => {
+        if (!window.confirm("Clear all names and winners?")) return;
+        state.participants = [];
+        state.winners = [];
+        state.lastWinnerId = "";
+        saveLocalState();
+        if (state.apiOnline) {
+          await postJson("/api/clear", {});
+        }
+        render();
+      });
+
+      copyLinkButton.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(state.joinUrl);
+        copyLinkButton.textContent = "Copied";
+        window.setTimeout(() => {
+          copyLinkButton.textContent = "Copy link";
+        }, 1200);
+      });
+
+      participantList.addEventListener("click", async (event) => {
+        const button = /** @type {HTMLElement | null} */ ((event.target instanceof HTMLElement ? event.target : null)?.closest("[data-remove-id]"));
+        if (!button) return;
+        const id = button.getAttribute("data-remove-id") || "";
+        state.participants = state.participants.filter((participant) => participant.id !== id);
+        state.winners = state.winners.filter((winner) => winner.id !== id);
+        saveLocalState();
+        if (state.apiOnline) {
+          await postJson("/api/remove", { id });
+        }
+        render();
+      });
+
+      joinForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = cleanName(joinNameInput.value);
+        if (!name) return;
+        joinResult.textContent = "Joining...";
+        try {
+          await postJson("/api/join", { name, source: "qr" });
+          joinResult.textContent = "You are on the wheel.";
+          joinNameInput.value = "";
+        } catch {
+          const participant = makeParticipant(name, "qr");
+          upsertLocalParticipant(participant);
+          saveLocalState();
+          joinResult.textContent = "Saved on this device. Live joins need the local event server.";
+        }
+      });
+    }
+
+    async function connectServer() {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) throw new Error("No local API");
+        const data = /** @type {ServerState} */ (await response.json());
+        state.apiOnline = true;
+        syncFromServer(data);
+        openEvents();
+      } catch {
+        state.apiOnline = false;
+      }
+      render();
+    }
+
+    function openEvents() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource("/api/events");
+      eventSource.onmessage = (event) => {
+        const data = /** @type {ServerState} */ (JSON.parse(event.data));
+        syncFromServer(data);
+        render();
+      };
+      eventSource.onerror = () => {
+        state.apiOnline = false;
+        render();
+      };
+    }
+
+    /** @param {ServerState} data */
+    function syncFromServer(data) {
+      state.participants = Array.isArray(data.participants) ? data.participants : state.participants;
+      state.joinUrl = chooseJoinUrl(data);
+      state.winners = state.winners.filter((winner) => state.participants.some((participant) => participant.id === winner.id));
+      saveLocalState();
+    }
+
+    /** @param {ServerState} data */
+    function chooseJoinUrl(data) {
+      const lanUrl = (data.lanJoinUrls || [])[0];
+      const isLocalhost = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+      if (isLocalhost && lanUrl) return lanUrl;
+      return data.joinUrl || getDefaultJoinUrl();
+    }
+
+    /** @param {string[]} rawNames @param {string} source */
+    async function addNames(rawNames, source) {
+      const names = rawNames.map(cleanName).filter(Boolean);
+      for (const name of names) {
+        if (state.apiOnline) {
+          await postJson("/api/join", { name, source });
+        } else {
+          upsertLocalParticipant(makeParticipant(name, source));
+        }
+      }
+      saveLocalState();
+      render();
+    }
+
+    /** @param {Participant} participant */
+    function upsertLocalParticipant(participant) {
+      const existing = state.participants.find((item) => normalizeName(item.name) === normalizeName(participant.name));
+      if (existing) return;
+      state.participants.push(participant);
+    }
+
+    function spinWheel() {
+      const pool = getPool();
+      if (state.spinning || pool.length === 0 || state.winners.length >= WINNER_TARGET) return;
+
+      const winner = pool[randomInt(pool.length)];
+      const visualPool = getVisualPool();
+      const index = visualPool.findIndex((participant) => participant.id === winner.id);
+      const arc = (Math.PI * 2) / visualPool.length;
+      const start = state.rotation;
+      const turns = 6 + randomInt(3);
+      const target = (Math.PI * 1.5) - (index + 0.5) * arc + turns * Math.PI * 2;
+      const duration = 4200;
+      const startTime = performance.now();
+
+      state.spinning = true;
+      spinButton.disabled = true;
+
+      function frame(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - progress, 4);
+        state.rotation = start + (target - start) * eased;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        state.rotation = normalizeAngle(target);
+        state.spinning = false;
+        state.lastWinnerId = winner.id;
+        state.winners.push(winner);
+        launchConfetti();
+        saveLocalState();
+        render();
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    function render() {
+      const pool = getPool();
+      nameCount.textContent = String(state.participants.length);
+      winnerCount.textContent = `${state.winners.length}/${WINNER_TARGET}`;
+      poolCount.textContent = String(pool.length);
+      spinButton.disabled = state.spinning || pool.length === 0 || state.winners.length >= WINNER_TARGET;
+
+      connectionStatus.classList.toggle("is-online", state.apiOnline);
+      connectionText.textContent = state.apiOnline ? "Local live mode" : "Static mode";
+
+      const lastWinner = state.winners.find((winner) => winner.id === state.lastWinnerId);
+      if (lastWinner) {
+        winnerKicker.textContent = `Winner ${state.winners.length} of ${WINNER_TARGET}`;
+        winnerName.textContent = lastWinner.name;
+      } else if (state.winners.length >= WINNER_TARGET) {
+        winnerKicker.textContent = "Draw complete";
+        winnerName.textContent = "Five winners picked";
+      } else if (state.participants.length === 0) {
+        winnerKicker.textContent = "Ready for winner 1 of 5";
+        winnerName.textContent = "Add names to start";
+      } else {
+        winnerKicker.textContent = `Ready for winner ${state.winners.length + 1} of ${WINNER_TARGET}`;
+        winnerName.textContent = `${pool.length} names in the pool`;
+      }
+
+      joinUrlElement.textContent = state.joinUrl;
+      openJoinButton.href = state.joinUrl;
+      renderParticipantList();
+      renderWinnerList();
+      drawWheel();
+      drawQrCode();
+    }
+
+    function renderParticipantList() {
+      if (state.participants.length === 0) {
+        participantList.innerHTML = '<div class="empty">No participants yet</div>';
+        return;
+      }
+
+      participantList.innerHTML = state.participants
+        .map((participant) => `
+          <div class="participant">
+            <span title="${escapeHtml(participant.name)}">${escapeHtml(participant.name)}</span>
+            <button class="btn-icon" type="button" title="Remove ${escapeHtml(participant.name)}" aria-label="Remove ${escapeHtml(participant.name)}" data-remove-id="${participant.id}">&times;</button>
+          </div>
+        `)
+        .join("");
+    }
+
+    function renderWinnerList() {
+      if (state.winners.length === 0) {
+        winnerList.innerHTML = '<div class="empty">No winners yet</div>';
+        return;
+      }
+
+      winnerList.innerHTML = state.winners
+        .map((winner, index) => `
+          <div class="winner">
+            <span title="${escapeHtml(winner.name)}">${index + 1}. ${escapeHtml(winner.name)}</span>
+          </div>
+        `)
+        .join("");
+    }
+
+    function drawWheel() {
+      const context = wheelCanvas.getContext("2d");
+      if (!context) return;
+
+      const rect = wheelCanvas.getBoundingClientRect();
+      const cssSize = Math.max(320, Math.floor(Math.min(rect.width || 680, 760)));
+      const ratio = window.devicePixelRatio || 1;
+      wheelCanvas.width = Math.floor(cssSize * ratio);
+      wheelCanvas.height = Math.floor(cssSize * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, cssSize, cssSize);
+
+      const center = cssSize / 2;
+      const radius = center - 24;
+      const visualPool = getVisualPool();
+
+      context.save();
+      context.translate(center, center);
+
+      if (visualPool.length === 0) {
+        context.beginPath();
+        context.arc(0, 0, radius, 0, Math.PI * 2);
+        context.fillStyle = "#f6f7f8";
+        context.fill();
+        context.lineWidth = 2;
+        context.strokeStyle = "#e2e6ea";
+        context.stroke();
+        context.fillStyle = "#66737c";
+        context.font = "800 20px Montserrat, Segoe UI, sans-serif";
+        context.textAlign = "center";
+        context.fillText("Waiting for names", 0, 6);
+        context.restore();
+        return;
+      }
+
+      const arc = (Math.PI * 2) / visualPool.length;
+      visualPool.forEach((participant, index) => {
+        const start = state.rotation + index * arc;
+        const end = start + arc;
+        context.beginPath();
+        context.moveTo(0, 0);
+        context.arc(0, 0, radius, start, end);
+        context.closePath();
+        context.fillStyle = COLORS[index % COLORS.length];
+        context.fill();
+        context.lineWidth = visualPool.length > 80 ? 0.5 : 2;
+        context.strokeStyle = "rgba(255,255,255,0.82)";
+        context.stroke();
+
+        if (arc > 0.055) {
+          context.save();
+          context.rotate(start + arc / 2);
+          context.textAlign = "right";
+          context.fillStyle = index % COLORS.length === 3 ? "#091f2c" : "#ffffff";
+          context.font = `${arc > 0.16 ? 700 : 600} ${arc > 0.13 ? 15 : 11}px Open Sans, Segoe UI, sans-serif`;
+          context.fillText(trimForWheel(participant.name, arc), radius - 16, 4);
+          context.restore();
+        }
+      });
+
+      context.beginPath();
+      context.arc(0, 0, Math.max(58, radius * 0.17), 0, Math.PI * 2);
+      context.fillStyle = "#ffffff";
+      context.fill();
+      context.lineWidth = 7;
+      context.strokeStyle = "#d5522b";
+      context.stroke();
+
+      context.fillStyle = "#1e224e";
+      context.font = "800 18px Montserrat, Segoe UI, sans-serif";
+      context.textAlign = "center";
+      context.fillText(`${visualPool.length}`, 0, -2);
+      context.fillStyle = "#66737c";
+      context.font = "700 10px Open Sans, Segoe UI, sans-serif";
+      context.fillText("IN POOL", 0, 17);
+      context.restore();
+    }
+
+    function drawQrCode() {
+      try {
+        drawQr(qrCanvas, state.joinUrl);
+      } catch {
+        const context = qrCanvas.getContext("2d");
+        if (!context) return;
+        context.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+        context.fillStyle = "#091f2c";
+        context.font = "700 16px Segoe UI, sans-serif";
+        context.textAlign = "center";
+        context.fillText("Copy link", qrCanvas.width / 2, qrCanvas.height / 2);
+      }
+    }
+
+    function launchConfetti() {
+      const rect = confettiCanvas.getBoundingClientRect();
+      const colors = ["#d5522b", "#1e224e", "#8cadc6", "#bed7e4", "#ffffff"];
+      confetti = Array.from({ length: 120 }, () => ({
+        x: rect.width / 2,
+        y: rect.height * 0.18,
+        vx: (random() - 0.5) * 9,
+        vy: random() * -7 - 2,
+        color: colors[randomInt(colors.length)],
+        size: random() * 8 + 4,
+        life: 1,
+        rotation: random() * Math.PI
+      }));
+    }
+
+    function animateConfetti() {
+      const context = confettiCanvas.getContext("2d");
+      if (context) {
+        const rect = confettiCanvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        confettiCanvas.width = Math.max(1, Math.floor(rect.width * ratio));
+        confettiCanvas.height = Math.max(1, Math.floor(rect.height * ratio));
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, rect.width, rect.height);
+
+        confetti = confetti.filter((piece) => piece.life > 0);
+        for (const piece of confetti) {
+          piece.vy += 0.22;
+          piece.x += piece.vx;
+          piece.y += piece.vy;
+          piece.rotation += 0.16;
+          piece.life -= 0.012;
+
+          context.save();
+          context.globalAlpha = Math.max(0, piece.life);
+          context.translate(piece.x, piece.y);
+          context.rotate(piece.rotation);
+          context.fillStyle = piece.color;
+          context.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.58);
+          context.restore();
+        }
+      }
+      requestAnimationFrame(animateConfetti);
+    }
+
+    function loadLocalState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (Array.isArray(saved.participants)) state.participants = saved.participants;
+        if (Array.isArray(saved.winners)) state.winners = saved.winners;
+        if (typeof saved.rotation === "number") state.rotation = saved.rotation;
+        if (typeof saved.lastWinnerId === "string") state.lastWinnerId = saved.lastWinnerId;
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function saveLocalState() {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          participants: state.participants,
+          winners: state.winners,
+          rotation: state.rotation,
+          lastWinnerId: state.lastWinnerId
+        })
+      );
+    }
+
+    /** @returns {Participant[]} */
+    function getPool() {
+      const winnerIds = new Set(state.winners.map((winner) => winner.id));
+      return state.participants.filter((participant) => !winnerIds.has(participant.id));
+    }
+
+    /** @returns {Participant[]} */
+    function getVisualPool() {
+      const pool = getPool();
+      return pool.length > 0 ? pool : state.participants;
+    }
+
+    /** @param {string} name @param {string} source @returns {Participant} */
+    function makeParticipant(name, source) {
+      return {
+        id: crypto.randomUUID(),
+        name,
+        joinedAt: Date.now(),
+        source
+      };
+    }
+
+    /** @param {string} value */
+    function splitNames(value) {
+      return value.split(/[\n,;]+/).map(cleanName).filter(Boolean);
+    }
+
+    /** @param {string} value */
+    function cleanName(value) {
+      return value.replace(/\s+/g, " ").trim().slice(0, 80);
+    }
+
+    /** @param {string} value */
+    function normalizeName(value) {
+      return cleanName(value).toLocaleLowerCase("en-US");
+    }
+
+    /** @param {string} path @param {unknown} payload */
+    async function postJson(path, payload) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error("Request failed");
+      return response.json();
+    }
+
+    function getDefaultJoinUrl() {
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.searchParams.set("join", "1");
+      url.hash = "";
+      return url.href;
+    }
+
+    /** @param {string} value */
+    function escapeHtml(value) {
+      return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    /** @param {string} name @param {number} arc */
+    function trimForWheel(name, arc) {
+      const max = arc > 0.18 ? 24 : arc > 0.1 ? 16 : 10;
+      return name.length > max ? `${name.slice(0, max - 1)}...` : name;
+    }
+
+    /** @template {Element} T @param {string} selector @param {ParentNode} [root] @returns {T} */
+    function qs(selector, root = document) {
+      const element = root.querySelector(selector);
+      if (!element) throw new Error(`Missing element: ${selector}`);
+      return /** @type {T} */ (element);
+    }
+
+    /** @template T @param {T[]} values @returns {T[]} */
+    function shuffle(values) {
+      const copy = [...values];
+      for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomInt(index + 1);
+        [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+      }
+      return copy;
+    }
+
+    function random() {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return (array[0] || 0) / 2 ** 32;
+    }
+
+    /** @param {number} max */
+    function randomInt(max) {
+      return Math.floor(random() * max);
+    }
+
+    /** @param {number} angle */
+    function normalizeAngle(angle) {
+      const full = Math.PI * 2;
+      return ((angle % full) + full) % full;
+    }
+
+    /** @param {HTMLCanvasElement} canvas @param {string} text */
+    function drawQr(canvas, text) {
+      const matrix = createQrMatrix(text);
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const size = matrix.length;
+      const quiet = 4;
+      const total = size + quiet * 2;
+      const cssSize = Math.floor(canvas.getBoundingClientRect().width || 160);
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = cssSize * ratio;
+      canvas.height = cssSize * ratio;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, cssSize, cssSize);
+
+      const moduleSize = cssSize / total;
+      context.fillStyle = "#091f2c";
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          if (matrix[y][x]) {
+            context.fillRect((x + quiet) * moduleSize, (y + quiet) * moduleSize, Math.ceil(moduleSize), Math.ceil(moduleSize));
+          }
+        }
+      }
+    }
+
+    /** @param {string} text @returns {boolean[][]} */
+    function createQrMatrix(text) {
+      const bytes = Array.from(new TextEncoder().encode(text));
+      const dataCodewords = 80;
+      const eccCodewords = 20;
+      const size = 33;
+
+      if (bytes.length > 78) {
+        throw new Error("QR text is too long for the compact event QR.");
+      }
+
+      const bitBuffer = [];
+      appendBits(bitBuffer, 0b0100, 4);
+      appendBits(bitBuffer, bytes.length, 8);
+      for (const byte of bytes) appendBits(bitBuffer, byte, 8);
+      appendBits(bitBuffer, 0, Math.min(4, dataCodewords * 8 - bitBuffer.length));
+      while (bitBuffer.length % 8 !== 0) bitBuffer.push(0);
+
+      const data = [];
+      for (let index = 0; index < bitBuffer.length; index += 8) {
+        data.push(bitsToByte(bitBuffer.slice(index, index + 8)));
+      }
+      for (let pad = 0; data.length < dataCodewords; pad += 1) {
+        data.push(pad % 2 === 0 ? 0xec : 0x11);
+      }
+
+      const codewords = data.concat(reedSolomonRemainder(data, eccCodewords));
+      const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
+      const reserved = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
+
+      /** @param {number} x @param {number} y @param {boolean} dark */
+      function setFunction(x, y, dark) {
+        if (x < 0 || y < 0 || x >= size || y >= size) return;
+        matrix[y][x] = dark;
+        reserved[y][x] = true;
+      }
+
+      drawFinder(setFunction, 0, 0);
+      drawFinder(setFunction, size - 7, 0);
+      drawFinder(setFunction, 0, size - 7);
+      drawAlignment(setFunction, 26, 26);
+
+      for (let index = 8; index < size - 8; index += 1) {
+        setFunction(index, 6, index % 2 === 0);
+        setFunction(6, index, index % 2 === 0);
+      }
+
+      setFunction(8, size - 8, true);
+      reserveFormat(setFunction, size);
+      placeData(matrix, reserved, codewords);
+      drawFormat(setFunction, size);
+      return matrix;
+    }
+
+    /** @param {number[]} buffer @param {number} value @param {number} length */
+    function appendBits(buffer, value, length) {
+      for (let index = length - 1; index >= 0; index -= 1) {
+        buffer.push((value >>> index) & 1);
+      }
+    }
+
+    /** @param {number[]} bits */
+    function bitsToByte(bits) {
+      return bits.reduce((value, bit) => (value << 1) | bit, 0);
+    }
+
+    /** @param {(x: number, y: number, dark: boolean) => void} setFunction @param {number} left @param {number} top */
+    function drawFinder(setFunction, left, top) {
+      for (let y = -1; y <= 7; y += 1) {
+        for (let x = -1; x <= 7; x += 1) {
+          const inPattern = x >= 0 && x <= 6 && y >= 0 && y <= 6;
+          const dark = inPattern && (x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4));
+          setFunction(left + x, top + y, dark);
+        }
+      }
+    }
+
+    /** @param {(x: number, y: number, dark: boolean) => void} setFunction @param {number} centerX @param {number} centerY */
+    function drawAlignment(setFunction, centerX, centerY) {
+      for (let y = -2; y <= 2; y += 1) {
+        for (let x = -2; x <= 2; x += 1) {
+          setFunction(centerX + x, centerY + y, Math.max(Math.abs(x), Math.abs(y)) !== 1);
+        }
+      }
+    }
+
+    /** @param {(x: number, y: number, dark: boolean) => void} setFunction @param {number} size */
+    function reserveFormat(setFunction, size) {
+      for (let index = 0; index <= 8; index += 1) {
+        if (index !== 6) {
+          setFunction(8, index, false);
+          setFunction(index, 8, false);
+        }
+      }
+      for (let index = 0; index < 8; index += 1) {
+        setFunction(size - 1 - index, 8, false);
+      }
+      for (let index = 8; index < 15; index += 1) {
+        setFunction(8, size - 15 + index, false);
+      }
+    }
+
+    /** @param {boolean[][]} matrix @param {boolean[][]} reserved @param {number[]} codewords */
+    function placeData(matrix, reserved, codewords) {
+      const size = matrix.length;
+      let bitIndex = 0;
+      let upward = true;
+
+      for (let right = size - 1; right >= 1; right -= 2) {
+        if (right === 6) right -= 1;
+        for (let vertical = 0; vertical < size; vertical += 1) {
+          const y = upward ? size - 1 - vertical : vertical;
+          for (let column = 0; column < 2; column += 1) {
+            const x = right - column;
+            if (reserved[y][x]) continue;
+            const dark = getCodewordBit(codewords, bitIndex);
+            const mask = (x + y) % 2 === 0;
+            matrix[y][x] = dark !== mask;
+            bitIndex += 1;
+          }
+        }
+        upward = !upward;
+      }
+    }
+
+    /** @param {number[]} codewords @param {number} bitIndex */
+    function getCodewordBit(codewords, bitIndex) {
+      const byte = codewords[Math.floor(bitIndex / 8)] || 0;
+      return ((byte >>> (7 - (bitIndex % 8))) & 1) === 1;
+    }
+
+    /** @param {(x: number, y: number, dark: boolean) => void} setFunction @param {number} size */
+    function drawFormat(setFunction, size) {
+      const bits = getFormatBits();
+      for (let index = 0; index <= 5; index += 1) setFunction(8, index, getBit(bits, index));
+      setFunction(8, 7, getBit(bits, 6));
+      setFunction(8, 8, getBit(bits, 7));
+      setFunction(7, 8, getBit(bits, 8));
+      for (let index = 9; index < 15; index += 1) setFunction(14 - index, 8, getBit(bits, index));
+      for (let index = 0; index < 8; index += 1) setFunction(size - 1 - index, 8, getBit(bits, index));
+      for (let index = 8; index < 15; index += 1) setFunction(8, size - 15 + index, getBit(bits, index));
+      setFunction(8, size - 8, true);
+    }
+
+    function getFormatBits() {
+      const errorCorrectionLevel = 1;
+      const mask = 0;
+      const data = (errorCorrectionLevel << 3) | mask;
+      let remainder = data << 10;
+      for (let bit = 14; bit >= 10; bit -= 1) {
+        if (((remainder >>> bit) & 1) !== 0) {
+          remainder ^= 0x537 << (bit - 10);
+        }
+      }
+      return ((data << 10) | remainder) ^ 0x5412;
+    }
+
+    /** @param {number} value @param {number} bit */
+    function getBit(value, bit) {
+      return ((value >>> bit) & 1) !== 0;
+    }
+
+    /** @param {number[]} data @param {number} degree */
+    function reedSolomonRemainder(data, degree) {
+      const generator = reedSolomonGenerator(degree);
+      const result = Array.from({ length: degree }, () => 0);
+
+      for (const byte of data) {
+        const factor = byte ^ (result.shift() || 0);
+        result.push(0);
+        for (let index = 0; index < degree; index += 1) {
+          result[index] ^= multiply(generator[index + 1] || 0, factor);
+        }
+      }
+      return result;
+    }
+
+    /** @param {number} degree */
+    function reedSolomonGenerator(degree) {
+      let result = [1];
+      for (let index = 0; index < degree; index += 1) {
+        result = polyMultiply(result, [1, EXP[index]]);
+      }
+      return result;
+    }
+
+    /** @param {number[]} left @param {number[]} right */
+    function polyMultiply(left, right) {
+      const result = Array.from({ length: left.length + right.length - 1 }, () => 0);
+      for (let i = 0; i < left.length; i += 1) {
+        for (let j = 0; j < right.length; j += 1) {
+          result[i + j] ^= multiply(left[i], right[j]);
+        }
+      }
+      return result;
+    }
+
+    /** @param {number} left @param {number} right */
+    function multiply(left, right) {
+      if (left === 0 || right === 0) return 0;
+      return EXP[LOG[left] + LOG[right]];
+    }
+
+    const EXP = Array.from({ length: 512 }, () => 0);
+    const LOG = Array.from({ length: 256 }, () => 0);
+    let value = 1;
+    for (let index = 0; index < 255; index += 1) {
+      EXP[index] = value;
+      LOG[value] = index;
+      value <<= 1;
+      if (value & 0x100) value ^= 0x11d;
+    }
+    for (let index = 255; index < 512; index += 1) {
+      EXP[index] = EXP[index - 255];
+    }
+
+    boot();
+  </script>
+</body>
+</html>
