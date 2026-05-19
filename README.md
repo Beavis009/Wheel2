@@ -15,7 +15,7 @@ Open the LAN URL printed by the server, then show the QR code from the presenter
 
 ## Firebase live mode
 
-The app uses Firebase Anonymous Auth and Realtime Database. Do not commit service account keys, CI tokens, or `.env` files. The Firebase web app config is public client configuration; paste it into the presenter UI at runtime so it is stored only in the presenter's browser and encoded into the QR link.
+The app uses Firebase Anonymous Auth and Realtime Database. Do not commit service account keys, CI tokens, `.env` files, or Firebase web app config values. Paste the Firebase web app config into the presenter UI at runtime; it is stored only in that browser and encoded into the QR join link for that event.
 
 ```powershell
 npm run firebase:login
@@ -24,7 +24,7 @@ firebase use <project-id>
 firebase deploy --only database
 ```
 
-In the Firebase console, create a Web app, enable Anonymous Authentication, create a Realtime Database, then paste the Web app config JSON into the presenter view.
+In the Firebase console, create a Web app, enable Anonymous Authentication, create a Realtime Database, then deploy the rules.
 
 ## Static mode
 

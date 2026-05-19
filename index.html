@@ -1619,6 +1619,7 @@
     const FIREBASE_CONFIG_KEY = "wheel2-firebase-config-v1";
     const GAME_ID_KEY = "wheel2-game-id-v1";
     const FIREBASE_SDK_VERSION = "12.13.0";
+    const DEFAULT_FIREBASE_CONFIG = null;
     const COLORS = ["#d5522b", "#1e224e", "#8cadc6", "#bed7e4", "#091f2c", "#ec8a66"];
 
     /** @type {any} */
@@ -2374,7 +2375,7 @@
     function loadFirebaseConfigFromStorageOrUrl() {
       const urlConfig = decodeConfig(getUrlParam("cfg"));
       const savedConfig = parseConfig(localStorage.getItem(FIREBASE_CONFIG_KEY) || "");
-      state.firebaseConfig = urlConfig || savedConfig;
+      state.firebaseConfig = urlConfig || savedConfig || DEFAULT_FIREBASE_CONFIG;
       if (state.firebaseConfig) {
         firebaseConfigInput.value = JSON.stringify(state.firebaseConfig, null, 2);
       }
@@ -2414,8 +2415,15 @@
       url.hash = "";
       url.searchParams.set("join", "1");
       if (state.gameId) url.searchParams.set("game", state.gameId);
-      if (state.firebaseConfig) url.searchParams.set("cfg", base64UrlEncode(JSON.stringify(state.firebaseConfig)));
+      if (state.firebaseConfig && !sameConfig(state.firebaseConfig, DEFAULT_FIREBASE_CONFIG)) {
+        url.searchParams.set("cfg", base64UrlEncode(JSON.stringify(state.firebaseConfig)));
+      }
       state.joinUrl = url.href;
+    }
+
+    /** @param {Record<string, string> | null} left @param {Record<string, string> | null} right */
+    function sameConfig(left, right) {
+      return Boolean(left && right && ["apiKey", "authDomain", "databaseURL", "projectId", "appId"].every((key) => left[key] === right[key]));
     }
 
     /** @param {string} path */
